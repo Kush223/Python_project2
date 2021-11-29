@@ -1,8 +1,11 @@
+from openpyxl.reader.excel import load_workbook
 from pywebio.input import *
 from pywebio.output import *
 from pywebio.pin import *
 from pywebio import start_server
 import os
+import pandas as pd
+from openpyxl import Workbook
 os.system('cls')
 
 def app():
@@ -47,9 +50,119 @@ def app():
     # elif os.path.exists(r"input/Signature")==True:
     #     os.remove(r"input/Signature")
 
+    # Generating all xlsx files
+    generate_marksheets()
+
     # Format required by the user
     put_input("range", label="Type the range of Roll Numbers")
     put_buttons(["Generate Range Transcripts","Generate All Transcripts"],onclick=[generate_range_transcripts, generate_all_transcripts])
+
+
+def generate_marksheets():
+    roll_num = pd.read_csv(r"input//names-roll.csv", index_col=0)
+    subjects = pd.read_csv(r"input//subjects_master.csv", index_col=0)
+    grades = pd.read_csv(r"input//grades.csv")
+
+    if os.path.exists(r"output//")==False:
+        os.mkdir(r"output//")
+
+    heading = ("Sl No.", "Subject No.",	"Subject Name",	"L-T-P", "Credit", "Subject Type", "Grade")
+    rolls = {}
+
+    for i,row in grades.iterrows():
+        roll = row["Roll"].upper()
+        subcode = row["SubCode"]
+        sem = row["Sem"]
+        credit = row["Credit"]
+        grade = row["Grade"]
+        subtype = row["Sub_Type"]
+
+        if roll not in rolls:
+            rolls[roll] = {}
+            rolls[roll]["Sem"] = []
+
+        if os.path.exists(r"output//"+'.xlsx')==False:
+            wb = Workbook()
+            sheet = wb.active
+            sheet.title = "Overall"
+            sheet.append(["Roll No.", roll])
+            sheet.append(["Name of Student", roll_num["Name"].loc[roll]])
+            sheet.append(["Discipline", roll[4]+roll[5]]) 
+        else:
+            wb = load_workbook(r"output//"+roll+'.xlsx')
+
+        if sem not in rolls[roll]["Sem"]:
+            rolls[roll]["Sem"].append(sem)
+            rolls[roll]["Credit"+str(sem)] = 0
+            rolls[roll]["Marks"+str(sem)] = 0
+
+        rolls[roll]["Credit"+str(sem)] += int(credit)
+        rolls[roll]["Marks"+str(sem)] += grade_to_marks(grade) * int(credit)
+        
+        if "Sem"+str(sem) not in wb.sheetnames:
+            wb.create_sheet(title="Sem"+str(sem))
+            sheet = wb["Sem"+str(sem)]
+            sheet.append(heading)
+            ind = 1
+        else:
+            sheet = wb["Sem"+str(sem)]
+            ind = int(sheet.cell(row=sheet.max_row, column=1).value)+1
+
+        sheet.append([ind, subcode, subjects["subname"].loc[subcode], subjects["ltp"].loc[subcode], credit, subtype, grade])
+        wb.save(r"output//"+roll+'.xlsx')
+
+    for roll in rolls:
+        wb = load_workbook(r"output//"+roll+".xlsx")
+        sheet = wb["Overall"]
+
+        rolls[roll]["Sem"].sort()
+        sheet.append(["Semester No."]+rolls[roll]["Sem"])
+
+        row1 = ["Semester wise Credit Taken"]
+        spi = ["SPI"]
+        row2 = ["Total Credits Taken"]
+        cpi = ["CPI"]
+        ind = 0
+        for i in rolls[roll]["Sem"]:
+            row1.append(rolls[roll]["Credit"+str(i)])
+            spi.append(round(rolls[roll]["Marks"+str(i)]/rolls[roll]["Credit"+str(i)],2))
+
+            if ind != 0:
+                rolls[roll]["Marks"+str(i)] += rolls[roll]["Marks"+str(ind)]
+                rolls[roll]["Credit"+str(i)] += rolls[roll]["Credit"+str(ind)]
+
+            row2.append(rolls[roll]["Credit"+str(i)])
+            cpi.append(round(rolls[roll]["Marks"+str(i)]/rolls[roll]["Credit"+str(i)],2))
+
+            ind += 1
+
+        sheet.append(row1)
+        sheet.append(spi)
+        sheet.append(row2)
+        sheet.append(cpi)
+        wb.save(r"output//"+roll+'.xlsx')
+
+
+
+def grade_to_marks(grade):
+    if 'AA' in grade:
+        return 10
+    elif 'AB' in grade:
+        return 9
+    elif 'BB' in grade:
+        return 8
+    elif 'BC' in grade:
+        return 7
+    elif 'CC' in grade:
+        return 6
+    elif 'CD' in grade:
+        return 5
+    elif 'DD' in grade:
+        return 4
+    elif 'F' in grade or 'I' in grade:
+        return 0
+    
+    print(grade)
 
 
 def generate_range_transcripts():
