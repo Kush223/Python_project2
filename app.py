@@ -4,6 +4,7 @@ from pywebio.output import *
 from pywebio.pin import *
 from pywebio import start_server
 import os
+import glob
 import pandas as pd
 from openpyxl import Workbook
 os.system('cls')
@@ -41,17 +42,19 @@ def app():
     if img1:
         img1["filename"] = "SEAL."+img1["filename"].split('.')[1]
         open(r'input/'+img1["filename"], 'wb').write(img1['content'])
-    # elif os.path.exists(r"input/SEAL")==True:
-    #     os.remove(r"input/SEAL")
+    else:
+        for name in glob.glob("input/SEAL*"):
+            os.remove(name)
     
     if img2:
         img2["filename"] = "Signature."+img2["filename"].split('.')[1]
         open(r'input/'+img2["filename"], 'wb').write(img2['content']) 
-    # elif os.path.exists(r"input/Signature")==True:
-    #     os.remove(r"input/Signature")
+    else:
+        for name in glob.glob("input/Signature*"):
+            os.remove(name)
 
     # Generating all xlsx files
-    generate_marksheets()
+    #generate_marksheets()
 
     # Format required by the user
     put_input("range", label="Type the range of Roll Numbers")
