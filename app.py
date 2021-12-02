@@ -4,6 +4,7 @@ from pywebio.output import *
 from pywebio.pin import *
 from pywebio import start_server
 import os
+from fpdf import FPDF
 import pandas as pd
 from openpyxl import Workbook
 os.system('cls')
@@ -59,9 +60,18 @@ def app():
 
 
 def generate_marksheets():
-    roll_num = pd.read_csv(r"input//names-roll.csv", index_col=0)
+    roll_num = pd.read_csv(r"input//names-roll.csv")
     subjects = pd.read_csv(r"input//subjects_master.csv", index_col=0)
     grades = pd.read_csv(r"input//grades.csv")
+
+    name_dict={}
+    # for index, row in roll_num.iterrows():
+    #     name_dict[row['Roll']]=row['Name']
+    print(roll_num)
+    for i in range(len(roll_num)):
+        key=roll_num.loc[i,'Roll']
+        val=roll_num.loc[i,'Name']
+        name_dict[key]=val
 
     if os.path.exists(r"output//")==False:
         os.mkdir(r"output//")
@@ -70,6 +80,7 @@ def generate_marksheets():
     rolls = {}
 
     for i,row in grades.iterrows():
+
         roll = row["Roll"].upper()
         subcode = row["SubCode"]
         sem = row["Sem"]
@@ -81,66 +92,75 @@ def generate_marksheets():
             rolls[roll] = {}
             rolls[roll]["Sem"] = []
 
-        if os.path.exists(r"output//"+'.xlsx')==False:
-            wb = Workbook()
-            sheet = wb.active
-            sheet.title = "Overall"
-            sheet.append(["Roll No.", roll])
-            sheet.append(["Name of Student", roll_num["Name"].loc[roll]])
-            sheet.append(["Discipline", roll[4]+roll[5]]) 
-        else:
-            wb = load_workbook(r"output//"+roll+'.xlsx')
-
-        if sem not in rolls[roll]["Sem"]:
-            rolls[roll]["Sem"].append(sem)
-            rolls[roll]["Credit"+str(sem)] = 0
-            rolls[roll]["Marks"+str(sem)] = 0
-
-        rolls[roll]["Credit"+str(sem)] += int(credit)
-        rolls[roll]["Marks"+str(sem)] += grade_to_marks(grade) * int(credit)
+        pdf = FPDF('L', 'mm', 'A3')
+        pdf.add_page()
+        pdf.set_font('Arial',size= 12)
+        pdf.image('iitp_logo.jpeg', x = None, y = None, w = 0, h = 0, type = 'jpeg')
+        pdf.multi_cell(200,10,"Roll No:  %s      Name:  %s      Year of Admission:  %s" %(roll,name_dict[roll],'20'+roll[:2]),border=1,align='C')
         
-        if "Sem"+str(sem) not in wb.sheetnames:
-            wb.create_sheet(title="Sem"+str(sem))
-            sheet = wb["Sem"+str(sem)]
-            sheet.append(heading)
-            ind = 1
-        else:
-            sheet = wb["Sem"+str(sem)]
-            ind = int(sheet.cell(row=sheet.max_row, column=1).value)+1
+        path = 'TranscriptIITP/' + roll + '.pdf'
+        pdf.output(path, 'F')
 
-        sheet.append([ind, subcode, subjects["subname"].loc[subcode], subjects["ltp"].loc[subcode], credit, subtype, grade])
-        wb.save(r"output//"+roll+'.xlsx')
+        # if os.path.exists(r"output//"+'.xlsx')==False:
+        #     wb = Workbook()
+        #     sheet = wb.active
+        #     sheet.title = "Overall"
+        #     sheet.append(["Roll No.", roll])
+        #     sheet.append(["Name of Student", roll_num["Name"].loc[roll]])
+        #     sheet.append(["Discipline", roll[4]+roll[5]]) 
+        # else:
+        #     wb = load_workbook(r"output//"+roll+'.xlsx')
 
-    for roll in rolls:
-        wb = load_workbook(r"output//"+roll+".xlsx")
-        sheet = wb["Overall"]
+    #     if sem not in rolls[roll]["Sem"]:
+    #         rolls[roll]["Sem"].append(sem)
+    #         rolls[roll]["Credit"+str(sem)] = 0
+    #         rolls[roll]["Marks"+str(sem)] = 0
 
-        rolls[roll]["Sem"].sort()
-        sheet.append(["Semester No."]+rolls[roll]["Sem"])
+    #     rolls[roll]["Credit"+str(sem)] += int(credit)
+    #     rolls[roll]["Marks"+str(sem)] += grade_to_marks(grade) * int(credit)
+        
+    #     if "Sem"+str(sem) not in wb.sheetnames:
+    #         wb.create_sheet(title="Sem"+str(sem))
+    #         sheet = wb["Sem"+str(sem)]
+    #         sheet.append(heading)
+    #         ind = 1
+    #     else:
+    #         sheet = wb["Sem"+str(sem)]
+    #         ind = int(sheet.cell(row=sheet.max_row, column=1).value)+1
 
-        row1 = ["Semester wise Credit Taken"]
-        spi = ["SPI"]
-        row2 = ["Total Credits Taken"]
-        cpi = ["CPI"]
-        ind = 0
-        for i in rolls[roll]["Sem"]:
-            row1.append(rolls[roll]["Credit"+str(i)])
-            spi.append(round(rolls[roll]["Marks"+str(i)]/rolls[roll]["Credit"+str(i)],2))
+    #     sheet.append([ind, subcode, subjects["subname"].loc[subcode], subjects["ltp"].loc[subcode], credit, subtype, grade])
+    #     wb.save(r"output//"+roll+'.xlsx')
 
-            if ind != 0:
-                rolls[roll]["Marks"+str(i)] += rolls[roll]["Marks"+str(ind)]
-                rolls[roll]["Credit"+str(i)] += rolls[roll]["Credit"+str(ind)]
+    # for roll in rolls:
+    #     wb = load_workbook(r"output//"+roll+".xlsx")
+    #     sheet = wb["Overall"]
 
-            row2.append(rolls[roll]["Credit"+str(i)])
-            cpi.append(round(rolls[roll]["Marks"+str(i)]/rolls[roll]["Credit"+str(i)],2))
+    #     rolls[roll]["Sem"].sort()
+    #     sheet.append(["Semester No."]+rolls[roll]["Sem"])
 
-            ind += 1
+    #     row1 = ["Semester wise Credit Taken"]
+    #     spi = ["SPI"]
+    #     row2 = ["Total Credits Taken"]
+    #     cpi = ["CPI"]
+    #     ind = 0
+    #     for i in rolls[roll]["Sem"]:
+    #         row1.append(rolls[roll]["Credit"+str(i)])
+    #         spi.append(round(rolls[roll]["Marks"+str(i)]/rolls[roll]["Credit"+str(i)],2))
 
-        sheet.append(row1)
-        sheet.append(spi)
-        sheet.append(row2)
-        sheet.append(cpi)
-        wb.save(r"output//"+roll+'.xlsx')
+    #         if ind != 0:
+    #             rolls[roll]["Marks"+str(i)] += rolls[roll]["Marks"+str(ind)]
+    #             rolls[roll]["Credit"+str(i)] += rolls[roll]["Credit"+str(ind)]
+
+    #         row2.append(rolls[roll]["Credit"+str(i)])
+    #         cpi.append(round(rolls[roll]["Marks"+str(i)]/rolls[roll]["Credit"+str(i)],2))
+
+    #         ind += 1
+
+    #     sheet.append(row1)
+    #     sheet.append(spi)
+    #     sheet.append(row2)
+    #     sheet.append(cpi)
+    #     wb.save(r"output//"+roll+'.xlsx')
 
 
 
@@ -170,6 +190,7 @@ def generate_range_transcripts():
 
 
 def generate_all_transcripts():
+    
     pass
 
 
@@ -184,4 +205,5 @@ def save_csv(content: list, filename):
 
 
 if __name__=='__main__':
-    start_server(app, port=36535, debug=True)
+    generate_marksheets()
+    start_server(app, port=36536, debug=True)
