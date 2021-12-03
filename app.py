@@ -58,7 +58,7 @@ def app():
             os.remove(name)
 
     # Generating all xlsx files
-    #generate_marksheets()
+    # generate_marksheets()
 
     # Format required by the user
     put_input("range", label="Type the range of Roll Numbers")
