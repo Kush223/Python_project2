@@ -14,7 +14,13 @@ import csv
 os.system('cls')
 
 def app():
-    pass
+    
+    popup('Warning!!', [
+        put_text("Clicking the following Delete button will delete all your files in the transcriptIITP folder. Otherwise you can Close the popup and move on"),
+        put_buttons(['Delete','Close'], onclick=[lambda: clear_folder(), lambda: close_popup()])
+    ])
+
+
     # input form
     info = input_group("Upload CSV files", [
         file_upload("Upload Roll Number Sheet", name="file1", required=True, accept=".csv"),
@@ -69,6 +75,12 @@ def workfunc():
     put_button("Generate All Transcripts", onclick=lambda: generate_transcripts("0000AA00-9999ZZ99"), color='success', outline=True)
 
 
+def clear_folder():
+    for filename in glob.glob("transcriptIITP/*"):
+        os.remove(filename)
+    close_popup()
+
+
 def progress():
     put_html("<p align=""center"">\
     <img src=""https://media0.giphy.com/media/kUTME7ABmhYg5J3psM/200.webp?\
@@ -79,13 +91,12 @@ def progress():
 def generate_transcripts(rolln):
     clear()
     progress()
-    print(rolln)
     with open('input/names-roll.csv', 'r') as csvfile:
         csv_reader = csv.DictReader(csvfile)
         names = {}
 
         for row in csv_reader:
-            names[row['Roll']] = row['Name']
+            names[row['Roll'].upper()] = row['Name']
 
     with open('input/grades.csv', 'r') as csvfile:
         csv_reader = csv.DictReader(csvfile)
@@ -101,9 +112,9 @@ def generate_transcripts(rolln):
             listA.append(row['Sub_Type'])
 
             if(record_grades.get(row['Roll']) == None):
-                record_grades[row['Roll']] = [listA]
+                record_grades[row['Roll'].upper()] = [listA]
             else:
-                record_grades[row['Roll']].append(listA)
+                record_grades[row['Roll'].upper()].append(listA)
 
     with open('input/subjects_master.csv', 'r') as csvfile:
         csvreader = csv.DictReader(csvfile)
@@ -141,11 +152,8 @@ def generate_transcripts(rolln):
 
         results[roll] = studentResult
 
-    st = rolln.split("-")[0]
-    en = rolln.split("-")[1]
-
-    print(st)
-    print(en)
+    st = rolln.split("-")[0].upper()
+    en = rolln.split("-")[1].upper()
 
     for roll in record_grades:
         if roll < st or roll > en:
