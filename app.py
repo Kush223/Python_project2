@@ -19,7 +19,7 @@ def app():
     info = input_group("Upload CSV files", [
         file_upload("Upload Roll Number Sheet", name="file1", required=True, accept=".csv"),
         file_upload("Upload Subject Master Sheet",  name="file2", required=True, accept=".csv"),
-        file_upload("Upload Gardes Sheet",  name="file3", required=True, accept=".csv"),
+        file_upload("Upload Grades Sheet",  name="file3", required=True, accept=".csv"),
         file_upload("Upload SEAL", name="img1", accept="image/*", multiple=False, required=False),
         file_upload("Upload Signature", name="img2", accept="image/*", multiple=False, required=False)
     ])
@@ -57,19 +57,29 @@ def app():
         for name in glob.glob("input/Signature*"):
             os.remove(name)
 
-    # Generating all xlsx files
-    # generate_marksheets()
+    workfunc()
+
+
+def workfunc():
+    clear()
 
     # Format required by the user
     put_input("range", label="Type the range of Roll Numbers")
-    put_buttons(["Generate Range Transcripts","Generate All Transcripts"],onclick=[generate_range_transcripts, generate_all_transcripts])
+    put_button("Generate Range Transcripts", onclick=lambda:generate_transcripts(pin["range"]), color='success', outline=True)
+    put_button("Generate All Transcripts", onclick=lambda: generate_transcripts("0000AA00-9999ZZ99"), color='success', outline=True)
 
 
+def progress():
+    put_html("<p align=""center"">\
+    <img src=""https://media0.giphy.com/media/kUTME7ABmhYg5J3psM/200.webp?\
+    cid=ecf05e47som5hu3l2owou9vmn20hue70j113dgls1ghb1909&rid=200.webp&ct=g""\
+    width=""120px""></p>")
 
-def generateTranscript():
-    grade_score = {'AA': 10, 'AB': 9, 'BB': 8, ' BB': 8, 'BC': 7, 'CC': 6,
-                'CD': 5, 'DD': 4, 'DD*': 4, 'F': 0, 'F*': 0, 'I': 0, 'I*': 0}
 
+def generate_transcripts(rolln):
+    clear()
+    progress()
+    print(rolln)
     with open('input/names-roll.csv', 'r') as csvfile:
         csv_reader = csv.DictReader(csvfile)
         names = {}
@@ -131,135 +141,320 @@ def generateTranscript():
 
         results[roll] = studentResult
 
+    st = rolln.split("-")[0]
+    en = rolln.split("-")[1]
+
+    print(st)
+    print(en)
+
     for roll in record_grades:
-        pdf = FPDF('L', 'mm', 'A3')
-        pdf.add_page()
-        pdf.set_font('Arial',size= 12)
-        pdf.y = 10
-        
-        start_y=pdf.y
-        pdf.image('iitp_logo_1.jpeg', x = None, y = None, w = 0, h = 0, type = 'jpeg')
-        image_bottom_y=pdf.y
+        if roll < st or roll > en:
+            continue
 
-        pdf.y = pdf.y+5
-        pdf.x= pdf.x + 90
-        pdf.cell(225,10,"     Roll No:  %s                                        Name:  %s                    Year of Admission:  %s" %(roll,names[roll],'20'+roll[:2]),border="L,R,T")
-        pdf.ln(5)
-        pdf.x= pdf.x + 90
-        pdf.cell(225,10,"     Programe:  Bachelor of Technology               Course:  %s" %roll[4:6],border="L,R,B")
-        pdf.ln(10)
-        
-        creds_taken = []
-        totalcreds_taken = []
-        sem = []
-        spi = []
-        totalcreds_sum = 0
-        cpi = []
-        cpi_sum = 0
+        if os.path.exists("output/"+roll+'.pdf'):
+            continue
 
-        for i in results[roll]:
-            sem.append(i)
-            spi_sum = 0
-            cred_sum = 0
-
-            for row in results[roll][i]:
-                cred = float(row[3])
-                marks = float(grade_score[row[5]])
-                
-                spi_sum += marks*cred
-                cred_sum += cred
-
-            totalcreds_sum += cred_sum
-            cpi_sum += (spi_sum/cred_sum)*cred_sum
-
-            spi.append(round(spi_sum/cred_sum, 2))
-            cpi.append(round(cpi_sum/totalcreds_sum, 2))
-            creds_taken.append(cred_sum)
-            totalcreds_taken.append(totalcreds_sum)
-
-        pdf.ln(10)
-        top_y = pdf.y
-        top1_x = pdf.x
-        top_x = pdf.x
-        max_y = 0
-
-        for i in results[roll]:
-            if i == '10':
-                break
-
-            if int(i) == 5:
-                pdf.line(top1_x-3,max_y+5,pdf.x+4,max_y+5)
-                pdf.y = max_y +5
-                pdf.x = top1_x 
-                top_x = top1_x 
-                top_y = max_y + 5
-                
-
-            pdf.set_font('Arial',style="BU",size= 10)
-            pdf.cell(100,10,"Semester"+i,align='L',ln=2)
+        if roll[2]+roll[3]=='01':
+            pdf = FPDF('L', 'mm', 'A3')
+            pdf.add_page()
+            pdf.set_font('Arial',size= 12)
+            pdf.y = 10
             
-            pdf.set_font('Arial',size= 6)
-            offset_x = pdf.x
-
-            pdf.cell(20,5,"Sub. Code",ln=0,align='C',border= 1)
-            pdf.cell(40,5,"Subject Name",ln=0,align='C',border= 1)
-            pdf.cell(15,5,"L-T-P",ln=0,align='C',border= 1)
-            pdf.cell(10,5,"CRD",ln=0,align='C',border= 1)
-            pdf.cell(10,5,"GRD",ln=1,align='C',border= 1)
-            
-            pdf.x= offset_x
-            for row in results[roll][i]:
-                offset_x = pdf.x
-                pdf.cell(20,5,row[0],ln=0,align='C',border= 1)
-                pdf.cell(40,5,row[1],ln=0,align='C',border= 1)
-                pdf.cell(15,5,row[2],ln=0,align='C',border= 1)
-                pdf.cell(10,5,row[3],ln=0,align='C',border= 1)
-                pdf.cell(10,5,row[5],ln=1,align='C',border= 1)
-                pdf.x= offset_x
+            start_y=pdf.y
+            pdf.image('iitp_logo_1.jpeg', x = None, y = None, w = 0, h = 0, type = 'jpeg')
+            image_bottom_y=pdf.y
 
             pdf.y = pdf.y+5
+            pdf.x= pdf.x + 90
+            pdf.cell(225,10,"     Roll No:  %s                                        Name:  %s                    Year of Admission:  %s" %(roll,names[roll],'20'+roll[:2]),border="L,R,T")
+            pdf.ln(5)
+            pdf.x= pdf.x + 90
+            pdf.cell(225,10,"     Programe:  Bachelor of Technology               Course:  %s" %roll[4:6],border="L,R,B")
+            pdf.ln(10)
             
-            pdf.cell(70,7,txt="Credits Taken:  %s   Credits Cleared: %s  CPI:  %s   SPI:  %s" %(creds_taken[int(i)-1],creds_taken[int(i)-1],cpi[int(i)-1],spi[int(i)-1]), border=1,ln=1,align="C")
+            creds_taken = []
+            totalcreds_taken = []
+            sem = []
+            spi = []
+            totalcreds_sum = 0
+            cpi = []
+            cpi_sum = 0
 
-            max_y = max(max_y, pdf.y)       
-            top_x = top_x+ 100
-            pdf.x = top_x
-            pdf.y = top_y
+            for i in results[roll]:
+                sem.append(i)
+                spi_sum = 0
+                cred_sum = 0
 
-        pdf.line(top1_x-3, max_y + 5,top_x+4, max_y+5)
+                for row in results[roll][i]:
+                    cred = float(row[3])
+                    marks = float(grade_to_marks(row[5]))
+                    
+                    spi_sum += marks*cred
+                    cred_sum += cred
+
+                totalcreds_sum += cred_sum
+                cpi_sum += (spi_sum/cred_sum)*cred_sum
+
+                spi.append(round(spi_sum/cred_sum, 2))
+                cpi.append(round(cpi_sum/totalcreds_sum, 2))
+                creds_taken.append(cred_sum)
+                totalcreds_taken.append(totalcreds_sum)
+
+            pdf.ln(10)
+            top_y = pdf.y
+            top1_x = pdf.x
+            top_x = pdf.x
+            max_y = 0
+
+            for i in results[roll]:
+                if i == '10':
+                    break
+
+                if int(i) == 5:
+                    pdf.line(top1_x-3,max_y+5,pdf.x+4,max_y+5)
+                    pdf.y = max_y +5
+                    pdf.x = top1_x 
+                    top_x = top1_x 
+                    top_y = max_y + 5
+                    
+
+                pdf.set_font('Arial',style="BU",size= 10)
+                pdf.cell(100,10,"Semester"+i,align='L',ln=2)
+                
+                pdf.set_font('Arial',size= 6)
+                offset_x = pdf.x
+
+                pdf.cell(20,5,"Sub. Code",ln=0,align='C',border= 1)
+                pdf.cell(40,5,"Subject Name",ln=0,align='C',border= 1)
+                pdf.cell(15,5,"L-T-P",ln=0,align='C',border= 1)
+                pdf.cell(10,5,"CRD",ln=0,align='C',border= 1)
+                pdf.cell(10,5,"GRD",ln=1,align='C',border= 1)
+                
+                pdf.x= offset_x
+                for row in results[roll][i]:
+                    offset_x = pdf.x
+                    pdf.cell(20,5,row[0],ln=0,align='C',border= 1)
+                    pdf.cell(40,5,row[1],ln=0,align='C',border= 1)
+                    pdf.cell(15,5,row[2],ln=0,align='C',border= 1)
+                    pdf.cell(10,5,row[3],ln=0,align='C',border= 1)
+                    pdf.cell(10,5,row[5],ln=1,align='C',border= 1)
+                    pdf.x= offset_x
+
+                pdf.y = pdf.y+5
+                
+                pdf.cell(70,7,txt="Credits Taken:  %s   Credits Cleared: %s  CPI:  %s   SPI:  %s" %(creds_taken[int(i)-1],creds_taken[int(i)-1],cpi[int(i)-1],spi[int(i)-1]), border=1,ln=1,align="C")
+
+                max_y = max(max_y, pdf.y)       
+                top_x = top_x+ 100
+                pdf.x = top_x
+                pdf.y = top_y
+
+            pdf.line(top1_x-3, max_y + 5,top_x+4, max_y+5)
+                
+
+            pdf.x = top1_x + 5
+            pdf.y = max_y + 25
+
+            pdf.set_font('Arial',style="B",size= 10)    
+            pdf.cell(30,7,"Date Generated: ",border=0,align='L')
+            pdf.set_font('Arial',style="U",size= 10)
+            today = datetime.today()
+            pdf.cell(50,7,today.strftime("%d %b %Y %H:%M:%S"),border=0,align="C")
+
+            pdf.x = pdf.x + 115
+            pdf.y = pdf.y - 10
+
+            vis = False
+            for filename in glob.glob("input/SEAL*"):
+                vis = True
+                file = filename
+
+            if vis:
+                pdf.image(file,w = 35,h = 20)
+
+            pdf.x = pdf.x + 150
+            pdf.y = max_y + 30
+            pdf.set_font('Arial',style="B",size= 10)
             
+            vis = False
+            for filename in glob.glob("input/Signature*"):
+                vis = True
+                file = filename    
+            
+            pdf.cell(50,7,"Assistant Registrar(Academic)",border='T',align='L')
+            pdf.y = pdf.y - 22
+            pdf.x = pdf.x - 45
+            
+            if vis:
+                pdf.image(file,w = 35,h = 20)
+            else:
+                pdf.y = pdf.y + 20
+                pdf.x = pdf.x + 35
 
-        pdf.x = top1_x + 5
-        pdf.y = max_y + 25
-
-        pdf.set_font('Arial',style="B",size= 10)    
-        pdf.cell(30,7,"Date Generated: ",border=0,align='L')
-        pdf.set_font('Arial',style="U",size= 10)
-        today = datetime.today()
-        pdf.cell(50,7,today.strftime("%d %b %Y %H:%M:%S"),border=0,align="C")
-
-        pdf.x = pdf.x + 115
-        pdf.y = pdf.y - 10
-
-        pdf.image('seal.jpeg',w = 35,h = 20)
-
-        pdf.x = pdf.x + 150
-        pdf.y = max_y + 30
-        pdf.set_font('Arial',style="B",size= 10)  
-        pdf.cell(50,7,"Assistant Registrar(Academic)",border='T',align='L')
-        pdf.y = pdf.y - 22
-        pdf.x = pdf.x - 45
-        pdf.image('signature.jpeg',w = 35,h = 20)
-
-        pdf.line(top1_x-3, pdf.y+10,top_x+4, pdf.y+10)
-        pdf.line(top1_x-3,start_y,top_x+4,start_y)
-        pdf.line(top1_x-3,image_bottom_y,top_x+4,image_bottom_y)
-        pdf.line(top1_x-3, pdf.y+10,top1_x-3,start_y)
-        pdf.line(top_x+4, start_y,top_x+4, pdf.y+10)
+            pdf.line(top1_x-3, pdf.y+10,top_x+4, pdf.y+10)
+            pdf.line(top1_x-3,start_y,top_x+4,start_y)
+            pdf.line(top1_x-3,image_bottom_y,top_x+4,image_bottom_y)
+            pdf.line(top1_x-3, pdf.y+10,top1_x-3,start_y)
+            pdf.line(top_x+4, start_y,top_x+4, pdf.y+10)
 
 
-        path = 'TranscriptIITP/' + roll + '.pdf'
-        pdf.output(path, 'F')
+            path = 'TranscriptIITP/' + roll + '.pdf'
+            pdf.output(path, 'F')
+        
+        else:
+            pdf = FPDF('P', 'mm', 'A4')
+            pdf.add_page()
+            pdf.set_font('Arial',size= 8)
+            pdf.y = 10
+            
+            start_y=pdf.y
+            pdf.image('iitp_logo_1.jpeg', x = None, y = None, w = 190, h = 0, type = 'jpeg')
+            image_bottom_y=pdf.y
+
+            pdf.y = pdf.y+5
+            pdf.x= pdf.x + 30
+            pdf.cell(130,10,"  Roll No:  %s                                  Name:  %s                  Year of Admission:  %s" %(roll,names[roll],'20'+roll[:2]),border="L,R,T")
+            pdf.ln(5)
+            pdf.x= pdf.x + 30
+            if roll[2]+roll[3] == "11":
+                pdf.cell(130,10,"  Programe:  Master of Technology            Course:  %s" %roll[4:6],border="L,R,B")
+            elif roll[2]+roll[3] == "12":
+                pdf.cell(130,10,"  Programe:  Master of Science            Course:  %s" %roll[4:6],border="L,R,B")
+            else:
+                pdf.cell(130,10,"  Programe:  Doctor of Philosophy            Course:  %s" %roll[4:6],border="L,R,B")
+            pdf.ln(5)
+            
+            creds_taken = []
+            totalcreds_taken = []
+            sem = []
+            spi = []
+            totalcreds_sum = 0
+            cpi = []
+            cpi_sum = 0
+
+            for i in results[roll]:
+                sem.append(i)
+                spi_sum = 0
+                cred_sum = 0
+
+                for row in results[roll][i]:
+                    cred = float(row[3])
+                    marks = float(grade_to_marks(row[5]))
+                    
+                    spi_sum += marks*cred
+                    cred_sum += cred
+
+                totalcreds_sum += cred_sum
+                cpi_sum += (spi_sum/cred_sum)*cred_sum
+
+                spi.append(round(spi_sum/cred_sum, 2))
+                cpi.append(round(cpi_sum/totalcreds_sum, 2))
+                creds_taken.append(cred_sum)
+                totalcreds_taken.append(totalcreds_sum)
+
+            pdf.ln(5)
+            top_y = pdf.y
+            top1_x = pdf.x
+            top_x = pdf.x
+            max_y = 0
+            max_x = 200
+
+            for i in results[roll]:
+                if i == '10':
+                    break
+
+                if int(i) == 3:
+                    pdf.line(top1_x-3,max_y+5,pdf.x+4,max_y+5)
+                    pdf.y = max_y +5
+                    pdf.x = top1_x 
+                    top_x = top1_x 
+                    top_y = max_y + 5
+                    
+
+                pdf.set_font('Arial',style="BU",size= 9)
+                pdf.cell(95,10,"Semester"+i,align='L',ln=2)
+                
+                pdf.set_font('Arial',size= 5)
+                offset_x = pdf.x
+
+                pdf.cell(10,5,"Sub. Code",ln=0,align='C',border= 1)
+                pdf.cell(55,5,"Subject Name",ln=0,align='C',border= 1)
+                pdf.cell(10,5,"L-T-P",ln=0,align='C',border= 1)
+                pdf.cell(5,5,"CRD",ln=0,align='C',border= 1)
+                pdf.cell(10,5,"GRD",ln=1,align='C',border= 1)
+                
+                pdf.x= offset_x
+                for row in results[roll][i]:
+                    offset_x = pdf.x
+                    pdf.cell(10,5,row[0],ln=0,align='C',border= 1)
+                    pdf.cell(55,5,row[1],ln=0,align='C',border= 1)
+                    pdf.cell(10,5,row[2],ln=0,align='C',border= 1)
+                    pdf.cell(5,5,row[3],ln=0,align='C',border= 1)
+                    pdf.cell(10,5,row[5],ln=1,align='C',border= 1)
+                    pdf.x= offset_x
+
+                pdf.y = pdf.y+5
+                
+                pdf.cell(70,7,txt="Credits Taken:  %s   Credits Cleared: %s  CPI:  %s   SPI:  %s" %(creds_taken[int(i)-1],creds_taken[int(i)-1],cpi[int(i)-1],spi[int(i)-1]), border=1,ln=1,align="C")
+
+                max_y = max(max_y, pdf.y)       
+                top_x = top_x + 95
+                pdf.x = top_x
+                pdf.y = top_y
+
+            pdf.line(top1_x-3, max_y + 5,max_x+4, max_y+5)
+                
+
+            pdf.x = top1_x + 5
+            pdf.y = max_y + 25
+
+            pdf.set_font('Arial',style="B",size= 8)    
+            pdf.cell(30,7,"Date Generated: ",border=0,align='L')
+            pdf.set_font('Arial',style="U",size= 8)
+            today = datetime.today()
+            pdf.cell(20,7,today.strftime("%d %b %Y %H:%M:%S"),border=0,align="C")
+
+            pdf.x = pdf.x + 20
+            pdf.y = pdf.y - 10
+
+            vis = False
+            for filename in glob.glob("input/SEAL*"):
+                vis = True
+                file = filename
+
+            if vis:
+                pdf.image(file,w = 35,h = 20)
+
+            pdf.x = pdf.x + 60
+            pdf.y = max_y + 30
+            pdf.set_font('Arial',style="B",size= 8)  
+            pdf.cell(30,7,"Assistant Registrar(Academic)",border='T',align='C')
+            pdf.y = pdf.y - 20
+            pdf.x = pdf.x - 35
+
+            vis = False
+            for filename in glob.glob("input/Signature*"):
+                vis = True
+                file = filename
+
+            if vis:
+                pdf.image(file,w = 35,h = 20)
+            else:
+                pdf.y = pdf.y + 20
+                pdf.x = pdf.x + 35
+
+            pdf.line(top1_x-3, pdf.y+10,max_x+4, pdf.y+10)
+            pdf.line(top1_x-3,start_y,max_x+4,start_y)
+            pdf.line(top1_x-3,image_bottom_y,max_x+4,image_bottom_y)
+            pdf.line(top1_x-3, pdf.y+10,top1_x-3,start_y)
+            pdf.line(max_x+4, start_y,max_x+4, pdf.y+10)
+
+
+            path = 'TranscriptIITP/' + roll + '.pdf'
+            pdf.output(path, 'F')
+
+    workfunc()
+
 
 def grade_to_marks(grade):
     if 'AA' in grade:
@@ -278,17 +473,6 @@ def grade_to_marks(grade):
         return 4
     elif 'F' in grade or 'I' in grade:
         return 0
-    
-    print(grade)
-
-
-def generate_range_transcripts():
-    pass
-
-
-def generate_all_transcripts():
-    
-    pass
 
 
 # function to save the content of the uploaded csv by the filename provided
@@ -302,5 +486,4 @@ def save_csv(content: list, filename):
 
 
 if __name__=='__main__':
-    generateTranscript()
     start_server(app, port=36536, debug=True)
